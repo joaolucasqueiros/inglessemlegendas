@@ -1,0 +1,22 @@
+{
+  "name": "ingles-sem-legendas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Landing page do ebook Inglês Sem Legendas, publicada com Cloudflare Workers Static Assets.",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "npm": ">=11.9.0 <12"
+  },
+  "packageManager": "npm@11.9.0",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "XDG_CONFIG_HOME=\"$PWD/.wrangler/config\" WRANGLER_SEND_METRICS=false wrangler dev --local --ip 0.0.0.0 --port 8787",
+    "check": "XDG_CONFIG_HOME=\"$PWD/.wrangler/config\" WRANGLER_SEND_METRICS=false wrangler deploy --dry-run --outdir .wrangler/dry-run",
+    "test": "node --test tests/build.mjs && node tests/browser.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1",
+    "wrangler": "4.151.2"
+  }
+}
