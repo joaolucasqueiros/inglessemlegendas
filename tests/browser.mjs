@@ -51,6 +51,13 @@ try {
         failures.push(`${response.status()} ${response.url()}`);
     });
   };
+  const useEmptyConfig = (page) =>
+    page.route("**/config.js", (route) =>
+      route.fulfill({
+        contentType: "application/javascript",
+        body: 'window.SITE_CONFIG={checkoutUrl:"",metaPixelId:"",siteUrl:""}',
+      }),
+    );
   await mkdir(".wrangler/screenshots", { recursive: true });
 
   for (const [width, height] of [
@@ -67,6 +74,7 @@ try {
       deviceScaleFactor: 1,
     });
     attachChecks(page);
+    await useEmptyConfig(page);
     await page.goto(baseURL);
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator("h1").count(), 1);
@@ -106,6 +114,7 @@ try {
 
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   attachChecks(page);
+  await useEmptyConfig(page);
   const remoteRequests = [];
   page.on("request", (request) => {
     if (!request.url().startsWith(baseURL)) remoteRequests.push(request.url());
@@ -171,12 +180,6 @@ try {
     if (message.text().startsWith("TEST_PIXEL:"))
       pixelEvents.push(JSON.parse(message.text().slice(11)));
   });
-  await configured.route("**/config.js", (route) =>
-    route.fulfill({
-      contentType: "application/javascript",
-      body: 'window.SITE_CONFIG={checkoutUrl:"https://checkout.example.test/ebook",metaPixelId:"123456789012345",siteUrl:"https://ingles.example.test/"}',
-    }),
-  );
   await configured.route(
     "https://connect.facebook.net/en_US/fbevents.js",
     (route) =>
@@ -185,7 +188,7 @@ try {
         body: 'fbq.callMethod=function(){console.log("TEST_PIXEL:"+JSON.stringify(Array.from(arguments)))};fbq.queue.forEach(args=>fbq.callMethod.apply(null,args));',
       }),
   );
-  await configured.route("https://checkout.example.test/ebook", (route) =>
+  await configured.route("https://pay.cakto.com.br/3eucwcb_1220399", (route) =>
     route.fulfill({
       contentType: "text/html",
       body: "<!doctype html><title>Destino interceptado pelo teste</title>",
@@ -200,11 +203,17 @@ try {
       await configured
         .locator(`[data-checkout="${location}"]`)
         .getAttribute("href"),
-      "https://checkout.example.test/ebook",
+      "https://pay.cakto.com.br/3eucwcb_1220399",
     );
     await configured.locator(`[data-checkout="${location}"]`).click();
-    await configured.waitForURL("https://checkout.example.test/ebook");
+    await configured.waitForURL("https://pay.cakto.com.br/3eucwcb_1220399");
   }
+  assert.equal(
+    pixelEvents.filter(
+      (event) => event[0] === "init" && event[1] === "1120233877382323",
+    ).length,
+    2,
+  );
   assert.equal(
     pixelEvents.filter((event) => event[1] === "PageView").length,
     2,

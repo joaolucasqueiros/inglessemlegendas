@@ -81,6 +81,14 @@ export async function buildSite({
     );
   }
 
+  const pixelId = String(config.metaPixelId || "");
+  if (/^\d{5,25}$/.test(pixelId)) {
+    html = html.replace(
+      "</body>",
+      `<noscript><img class="meta-pixel-fallback" height="1" width="1" alt="" src="https://www.facebook.com/tr?id=${pixelId}&amp;ev=PageView&amp;noscript=1"></noscript>\n</body>`,
+    );
+  }
+
   await rm(outputDirectory, { recursive: true, force: true });
   await cp(sourceDirectory, outputDirectory, { recursive: true });
   await writeFile(join(outputDirectory, "index.html"), html);
