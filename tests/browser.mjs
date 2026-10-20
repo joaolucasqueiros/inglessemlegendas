@@ -44,7 +44,15 @@ try {
   });
   const errors = [];
   const failures = [];
-  const attachChecks = (page) => {
+  const utmifyUrl = "https://cdn.utmify.com.br/scripts/utms/latest.js";
+  const attachChecks = async (page) => {
+    // Isolate third-party delivery while checking browser CSP and script ordering.
+    await page.route(utmifyUrl, (route) =>
+      route.fulfill({
+        contentType: "application/javascript",
+        body: 'window.__utmifyReady = { links: Array.from(document.querySelectorAll("[data-checkout]"), el => el.href) };',
+      }),
+    );
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("response", (response) => {
       if (response.status() >= 400)
@@ -73,7 +81,7 @@ try {
       viewport: { width, height },
       deviceScaleFactor: 1,
     });
-    attachChecks(page);
+    await attachChecks(page);
     await useEmptyConfig(page);
     await page.goto(baseURL);
     await page.evaluate(() => document.fonts.ready);
@@ -113,11 +121,12 @@ try {
   }
 
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  attachChecks(page);
+  await attachChecks(page);
   await useEmptyConfig(page);
   const remoteRequests = [];
   page.on("request", (request) => {
-    if (!request.url().startsWith(baseURL)) remoteRequests.push(request.url());
+    if (!request.url().startsWith(baseURL) && request.url() !== utmifyUrl)
+      remoteRequests.push(request.url());
   });
   await page.goto(baseURL);
   for (const button of await page.locator("[data-checkout]").all()) {
@@ -129,7 +138,7 @@ try {
   assert.deepEqual(
     remoteRequests,
     [],
-    "Nenhum rastreamento/recurso externo sem configuração",
+    "Nenhum Meta Pixel carregado sem configuração",
   );
   console.log(
     "✓ Checkout ausente informa indisponibilidade, sem cobrança ou rastreamento",
@@ -174,7 +183,7 @@ try {
   const configured = await browser.newPage({
     viewport: { width: 390, height: 844 },
   });
-  attachChecks(configured);
+  await attachChecks(configured);
   const pixelEvents = [];
   configured.on("console", (message) => {
     if (message.text().startsWith("TEST_PIXEL:"))
@@ -199,6 +208,23 @@ try {
     await configured.waitForFunction(
       () => typeof window.fbq?.callMethod === "function",
     );
+    await configured.waitForFunction(() => !!window.__utmifyReady);
+    assert.deepEqual(
+      await configured.evaluate(() => window.__utmifyReady.links),
+      [
+        "https://pay.cakto.com.br/3eucwcb_1220399",
+        "https://pay.cakto.com.br/3eucwcb_1220399",
+      ],
+    );
+    const utmifyScript = configured.locator(`script[src="${utmifyUrl}"]`);
+    assert.equal(await utmifyScript.count(), 1);
+    for (const attribute of [
+      "data-utmify-prevent-xcod-sck",
+      "data-utmify-prevent-subids",
+      "defer",
+    ]) {
+      assert.equal(await utmifyScript.getAttribute(attribute), "");
+    }
     assert.equal(
       await configured
         .locator(`[data-checkout="${location}"]`)
@@ -226,6 +252,9 @@ try {
   assert.equal(checkoutEvents[0][2].currency, "BRL");
   console.log(
     "✓ Ambos os CTAs usam a URL configurada; PageView e InitiateCheckout validados com rede interceptada",
+  );
+  console.log(
+    "✓ UTMify permitida pelo CSP e carregada depois de configurar os links, com os atributos fornecidos",
   );
 
   await configured.route("**/config.js", (route) =>

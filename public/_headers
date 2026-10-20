@@ -3,7 +3,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self'; font-src 'self'; img-src 'self' https://www.facebook.com https://*.facebook.com; connect-src 'self' https://www.facebook.com https://*.facebook.com https://connect.facebook.net; frame-src https://www.facebook.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://connect.facebook.net https://cdn.utmify.com.br; style-src 'self'; font-src 'self'; img-src 'self' https://www.facebook.com https://*.facebook.com; connect-src 'self' https://www.facebook.com https://*.facebook.com https://connect.facebook.net; frame-src https://www.facebook.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'
 
 /assets/*
   Cache-Control: public, max-age=86400
