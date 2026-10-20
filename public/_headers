@@ -3,7 +3,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://connect.facebook.net https://cdn.utmify.com.br; style-src 'self'; font-src 'self'; img-src 'self' https://www.facebook.com https://*.facebook.com https://*.utmify.com.br; connect-src 'self' https://api.ipify.org https://api6.ipify.org https://*.utmify.com.br https://www.facebook.com https://*.facebook.com https://connect.facebook.net; frame-src https://www.facebook.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://connect.facebook.net https://cdn.utmify.com.br; style-src 'self'; font-src 'self'; img-src 'self' https://www.facebook.com https://*.facebook.com https://*.utmify.com.br; connect-src 'self' https://md-eecad2978f7a43f5b7838c919258e6de.ecs.us-east-2.on.aws https://bded8a3c6ae-1-1053047382554.us-central1.run.app https://api.ipify.org https://api6.ipify.org https://*.utmify.com.br https://www.facebook.com https://*.facebook.com https://connect.facebook.net; frame-src https://www.facebook.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action https://www.facebook.com/tr/
 
 /assets/*
   Cache-Control: public, max-age=86400

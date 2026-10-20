@@ -46,7 +46,21 @@ try {
   const failures = [];
   const utmifyUrl = "https://cdn.utmify.com.br/scripts/utms/latest.js";
   const utmifyPixelUrl = "https://cdn.utmify.com.br/scripts/pixel/pixel.js";
+  const metaTransportUrl = "https://www.facebook.com/tr/";
+  const metaGateways = [
+    "https://md-eecad2978f7a43f5b7838c919258e6de.ecs.us-east-2.on.aws/events",
+    "https://bded8a3c6ae-1-1053047382554.us-central1.run.app/events",
+  ];
   const attachChecks = async (page) => {
+    for (const url of metaGateways) {
+      await page.route(url, (route) => route.fulfill({ status: 204 }));
+    }
+    await page.route(metaTransportUrl, (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<!doctype html><title>Meta transport intercepted</title>",
+      }),
+    );
     for (const host of ["api.ipify.org", "api6.ipify.org"]) {
       await page.route(`https://${host}/**`, (route) =>
         route.fulfill({
@@ -58,7 +72,36 @@ try {
     await page.route(utmifyPixelUrl, (route) =>
       route.fulfill({
         contentType: "application/javascript",
-        body: 'window.__loadedPixelId = window.pixelId; Promise.all(["https://api.ipify.org/?format=json", "https://api6.ipify.org/?format=json"].map(url => fetch(url).then(response => { if (!response.ok) throw new Error("IP lookup blocked"); }))).then(() => window.__pixelDependenciesReady = true);',
+        body: `
+          window.__loadedPixelId = window.pixelId;
+          const dependencies = [
+            "https://api.ipify.org/?format=json",
+            "https://api6.ipify.org/?format=json",
+            ...${JSON.stringify(metaGateways)},
+          ];
+          Promise.all(dependencies.map(url => fetch(url).then(response => {
+            if (!response.ok) throw new Error("Pixel transport blocked");
+          }))).then(() => {
+            window.__pixelDependenciesReady = true;
+            const iframe = document.createElement("iframe");
+            iframe.name = "meta-transport-test";
+            iframe.hidden = true;
+            document.body.append(iframe);
+            const form = document.createElement("form");
+            form.action = "${metaTransportUrl}";
+            form.method = "POST";
+            form.target = iframe.name;
+            for (const [name, value] of Object.entries({id: "1120233877382323", ev: "PageView"})) {
+              const input = document.createElement("input");
+              input.type = "hidden";
+              input.name = name;
+              input.value = value;
+              form.append(input);
+            }
+            document.body.append(form);
+            form.submit();
+          });
+        `,
       }),
     );
     // Isolate third-party delivery while checking browser CSP and script ordering.
@@ -206,6 +249,10 @@ try {
     }),
   );
   for (const location of ["hero", "offer"]) {
+    const metaPost = configured.waitForRequest(
+      (request) =>
+        request.url() === metaTransportUrl && request.method() === "POST",
+    );
     await configured.goto(baseURL);
     await configured.waitForFunction(
       () => window.__loadedPixelId === "6ad7b085f5cbd7dbf00a1e8a",
@@ -214,6 +261,9 @@ try {
     await configured.waitForFunction(
       () => window.__pixelDependenciesReady === true,
     );
+    const metaPayload = new URLSearchParams((await metaPost).postData());
+    assert.equal(metaPayload.get("id"), "1120233877382323");
+    assert.equal(metaPayload.get("ev"), "PageView");
     assert.equal(
       await configured.locator(`script[src="${utmifyPixelUrl}"]`).count(),
       1,
@@ -261,6 +311,9 @@ try {
   }
   console.log(
     "✓ Ambos os CTAs apontam para Cakto e o novo pixel UTMify recebe o ID fornecido",
+  );
+  console.log(
+    "✓ CSP permite os gateways da Meta e o transporte alternativo por formulário, com destinos interceptados",
   );
   console.log(
     "✓ UTMify permitida pelo CSP e carregada depois de configurar os links, com os atributos fornecidos",
