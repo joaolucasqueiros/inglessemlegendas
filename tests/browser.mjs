@@ -45,7 +45,14 @@ try {
   const errors = [];
   const failures = [];
   const utmifyUrl = "https://cdn.utmify.com.br/scripts/utms/latest.js";
+  const utmifyPixelUrl = "https://cdn.utmify.com.br/scripts/pixel/pixel.js";
   const attachChecks = async (page) => {
+    await page.route(utmifyPixelUrl, (route) =>
+      route.fulfill({
+        contentType: "application/javascript",
+        body: "window.__loadedPixelId = window.pixelId;",
+      }),
+    );
     // Isolate third-party delivery while checking browser CSP and script ordering.
     await page.route(utmifyUrl, (route) =>
       route.fulfill({
@@ -63,7 +70,7 @@ try {
     page.route("**/config.js", (route) =>
       route.fulfill({
         contentType: "application/javascript",
-        body: 'window.SITE_CONFIG={checkoutUrl:"",metaPixelId:"",siteUrl:""}',
+        body: 'window.SITE_CONFIG={checkoutUrl:"",utmifyPixelId:"",siteUrl:""}',
       }),
     );
   await mkdir(".wrangler/screenshots", { recursive: true });
@@ -184,19 +191,6 @@ try {
     viewport: { width: 390, height: 844 },
   });
   await attachChecks(configured);
-  const pixelEvents = [];
-  configured.on("console", (message) => {
-    if (message.text().startsWith("TEST_PIXEL:"))
-      pixelEvents.push(JSON.parse(message.text().slice(11)));
-  });
-  await configured.route(
-    "https://connect.facebook.net/en_US/fbevents.js",
-    (route) =>
-      route.fulfill({
-        contentType: "application/javascript",
-        body: 'fbq.callMethod=function(){console.log("TEST_PIXEL:"+JSON.stringify(Array.from(arguments)))};fbq.queue.forEach(args=>fbq.callMethod.apply(null,args));',
-      }),
-  );
   await configured.route("https://pay.cakto.com.br/3eucwcb_1220399", (route) =>
     route.fulfill({
       contentType: "text/html",
@@ -206,9 +200,29 @@ try {
   for (const location of ["hero", "offer"]) {
     await configured.goto(baseURL);
     await configured.waitForFunction(
-      () => typeof window.fbq?.callMethod === "function",
+      () => window.__loadedPixelId === "6ad7b085f5cbd7dbf00a1e8a",
     );
     await configured.waitForFunction(() => !!window.__utmifyReady);
+    assert.equal(
+      await configured.locator(`script[src="${utmifyPixelUrl}"]`).count(),
+      1,
+    );
+    assert.equal(
+      await configured
+        .locator('script[src*="fbevents.js"], .meta-pixel-fallback')
+        .count(),
+      0,
+    );
+    assert.equal(
+      await configured.evaluate(() => typeof window.fbq),
+      "undefined",
+    );
+    assert.equal(
+      await configured
+        .locator(`script[src="${utmifyPixelUrl}"]`)
+        .evaluate((el) => el.async && el.defer),
+      true,
+    );
     assert.deepEqual(
       await configured.evaluate(() => window.__utmifyReady.links),
       [
@@ -234,24 +248,8 @@ try {
     await configured.locator(`[data-checkout="${location}"]`).click();
     await configured.waitForURL("https://pay.cakto.com.br/3eucwcb_1220399");
   }
-  assert.equal(
-    pixelEvents.filter(
-      (event) => event[0] === "init" && event[1] === "1120233877382323",
-    ).length,
-    2,
-  );
-  assert.equal(
-    pixelEvents.filter((event) => event[1] === "PageView").length,
-    2,
-  );
-  const checkoutEvents = pixelEvents.filter(
-    (event) => event[1] === "InitiateCheckout",
-  );
-  assert.equal(checkoutEvents.length, 2);
-  assert.equal(checkoutEvents[0][2].value, 19.9);
-  assert.equal(checkoutEvents[0][2].currency, "BRL");
   console.log(
-    "✓ Ambos os CTAs usam a URL configurada; PageView e InitiateCheckout validados com rede interceptada",
+    "✓ Ambos os CTAs apontam para Cakto e o novo pixel UTMify recebe o ID fornecido",
   );
   console.log(
     "✓ UTMify permitida pelo CSP e carregada depois de configurar os links, com os atributos fornecidos",
@@ -260,7 +258,7 @@ try {
   await configured.route("**/config.js", (route) =>
     route.fulfill({
       contentType: "application/javascript",
-      body: 'window.SITE_CONFIG={checkoutUrl:"javascript:alert(1)",metaPixelId:"invalid"}',
+      body: 'window.SITE_CONFIG={checkoutUrl:"javascript:alert(1)",utmifyPixelId:"invalid"}',
     }),
   );
   await configured.goto(baseURL);

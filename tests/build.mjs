@@ -13,7 +13,7 @@ async function fixture(t, siteUrl = "") {
   const sourceDirectory = join(root, "public");
   const outputDirectory = join(root, "dist");
   await mkdir(join(sourceDirectory, "assets"), { recursive: true });
-  const configSource = `window.SITE_CONFIG = Object.freeze(${JSON.stringify({ checkoutUrl: "", metaPixelId: "", siteUrl })});`;
+  const configSource = `window.SITE_CONFIG = Object.freeze(${JSON.stringify({ checkoutUrl: "", utmifyPixelId: "", siteUrl })});`;
   await Promise.all([
     writeFile(join(sourceDirectory, "index.html"), sourceHtml),
     writeFile(join(sourceDirectory, "config.js"), configSource),

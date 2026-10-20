@@ -14,28 +14,18 @@
   };
 
   const checkoutUrl = httpsUrl(config.checkoutUrl);
-  const pixelId = /^\d{5,25}$/.test(config.metaPixelId || "")
-    ? config.metaPixelId
+  const pixelId = /^[a-f\d]{24}$/i.test(config.utmifyPixelId || "")
+    ? config.utmifyPixelId
     : null;
 
-  // Optional tracking loads only after a real Pixel ID has been configured.
+  // The supplied UTMify integration owns pixel initialization and tracking.
   if (pixelId) {
-    const fbq = function () {
-      fbq.callMethod
-        ? fbq.callMethod.apply(fbq, arguments)
-        : fbq.queue.push(arguments);
-    };
-    fbq.queue = [];
-    fbq.push = fbq;
-    fbq.loaded = true;
-    fbq.version = "2.0";
-    window.fbq = window._fbq = fbq;
+    window.pixelId = pixelId;
     const pixelScript = document.createElement("script");
     pixelScript.async = true;
-    pixelScript.src = "https://connect.facebook.net/en_US/fbevents.js";
+    pixelScript.defer = true;
+    pixelScript.src = "https://cdn.utmify.com.br/scripts/pixel/pixel.js";
     document.head.append(pixelScript);
-    window.fbq("init", pixelId);
-    window.fbq("track", "PageView");
   }
 
   const notice = document.querySelector("#checkout-notice");
@@ -46,16 +36,6 @@
         event.preventDefault();
         notice.showModal();
         return;
-      }
-      if (pixelId && window.fbq) {
-        window.fbq("track", "InitiateCheckout", {
-          content_name: "Inglês Sem Legendas",
-          content_ids: ["ingles-sem-legendas-ebook"],
-          content_type: "product",
-          value: 19.9,
-          currency: "BRL",
-          num_items: 1,
-        });
       }
     });
   });

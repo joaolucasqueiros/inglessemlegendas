@@ -26,13 +26,13 @@ Edite somente os valores públicos em `public/config.js`:
 ```js
 window.SITE_CONFIG = {
   checkoutUrl: '',
-  metaPixelId: '',
+  utmifyPixelId: '',
   siteUrl: ''
 };
 ```
 
 - `checkoutUrl`: endereço HTTPS do checkout real. Enquanto estiver vazio, os botões de compra exibem um aviso e não abrem uma cobrança.
-- `metaPixelId`: identificador público do Meta Pixel. Vazio, mantém o rastreamento desativado.
+- `utmifyPixelId`: identificador público do pixel da UTMify. Vazio, mantém esse pixel desativado. O script da UTMify gerencia os eventos; não há inicialização paralela do antigo Meta Pixel. O script de UTMs permanece ativo separadamente.
 - `siteUrl`: endereço HTTPS definitivo da página. O build coloca canonical, `og:url` e `og:image` absoluta no HTML servido, para funcionar também com robôs de compartilhamento que não executam JavaScript. Deixe vazio apenas durante a prévia local; preencha antes da publicação.
 
 Não coloque tokens, senhas ou outros segredos nesse arquivo: seu conteúdo é público.
