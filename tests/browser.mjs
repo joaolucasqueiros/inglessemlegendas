@@ -47,10 +47,18 @@ try {
   const utmifyUrl = "https://cdn.utmify.com.br/scripts/utms/latest.js";
   const utmifyPixelUrl = "https://cdn.utmify.com.br/scripts/pixel/pixel.js";
   const attachChecks = async (page) => {
+    for (const host of ["api.ipify.org", "api6.ipify.org"]) {
+      await page.route(`https://${host}/**`, (route) =>
+        route.fulfill({
+          contentType: "application/json",
+          body: "{}",
+        }),
+      );
+    }
     await page.route(utmifyPixelUrl, (route) =>
       route.fulfill({
         contentType: "application/javascript",
-        body: "window.__loadedPixelId = window.pixelId;",
+        body: 'window.__loadedPixelId = window.pixelId; Promise.all(["https://api.ipify.org/?format=json", "https://api6.ipify.org/?format=json"].map(url => fetch(url).then(response => { if (!response.ok) throw new Error("IP lookup blocked"); }))).then(() => window.__pixelDependenciesReady = true);',
       }),
     );
     // Isolate third-party delivery while checking browser CSP and script ordering.
@@ -203,6 +211,9 @@ try {
       () => window.__loadedPixelId === "6ad7b085f5cbd7dbf00a1e8a",
     );
     await configured.waitForFunction(() => !!window.__utmifyReady);
+    await configured.waitForFunction(
+      () => window.__pixelDependenciesReady === true,
+    );
     assert.equal(
       await configured.locator(`script[src="${utmifyPixelUrl}"]`).count(),
       1,
